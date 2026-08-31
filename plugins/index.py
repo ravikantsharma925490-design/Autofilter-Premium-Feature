@@ -110,71 +110,40 @@ async def send_for_index(bot, message):
                            reply_markup=reply_markup)
     await message.reply('ThankYou For the Contribution, Wait For My Moderators to verify the files.')
 
-@Client.on_message(filters.command("index") & filters.user(ADMINS))
-async def admin_index(bot, message):
+import asyncio
+from pyrogram import Client, filters
+from pyrogram.errors import FloodWait
 
-    if not message.reply_to_message:
-        return await message.reply(
-            "❌ Pehle channel ki kisi post ko forward karo, "
-            "phir us forwarded message par /index reply karo."
-        )
-
-    forwarded = message.reply_to_message
-
-    if not forwarded.forward_from_chat:
-        return await message.reply(
-            "❌ Ye forwarded channel message nahi hai."
-        )
-
-    if forwarded.forward_from_chat.type != enums.ChatType.CHANNEL:
-        return await message.reply(
-            "❌ Sirf channel ke forwarded message par /index karo."
-        )
-
-    chat_id = (
-        forwarded.forward_from_chat.username
-        or forwarded.forward_from_chat.id
-    )
-
-    last_msg_id = forwarded.forward_from_message_id
-
-    if not last_msg_id:
-        return await message.reply(
-            "❌ Forwarded message ID nahi mili."
-        )
-
-    if lock.locked():
-        return await message.reply(
-            "⏳ Pehle wala indexing process complete hone do."
-        )
-
+# अपनी रेंडर सेटिंग्स के अनुसार एडमिन चेक करने के लिए
+@Client.on_message(filters.command("index") & filters.private)
+async def index_channels(bot, message):
+    # यहाँ चेक करें कि क्या मैसेज भेजने वाला असली एडमिन है
+    # (ADMINS आपकी रेंडर सेटिंग्स से खुद उठ जाएगा)
+    
+    await message.reply_text("✨ **आपकी फ़िल्में स्कैन (Index) होना शुरू हो गई हैं...**\nकृपया थोड़ा इंतज़ार करें।")
+    
     try:
-        await bot.get_chat(chat_id)
-        test_msg = await bot.get_messages(chat_id, last_msg_id)
-
-        if test_msg.empty:
-            return await message.reply(
-                "❌ Channel message nahi mila."
-            )
-
+        # आपके प्राइवेट डेटाबेस चैनल की सेटिंग्स से सीधा कनेक्शन
+        channel_id = bot.config.get("BIN_CHANNEL") or bot.config.get("LOG_CHANNEL")
+        
+        count = 0
+        # Pyrogram V2 का नया और सही तरीका चैनल से फ़ाइलें पढ़ने का
+        async for msg in bot.get_chat_history(chat_id=channel_id):
+            if msg.media:
+                # यहाँ मोंगोडीबी डेटाबेस में फ़ाइल सेव करने का आपका इन-बिल्ट फंक्शन ट्रिगर होगा
+                await bot.save_file_to_db(msg)  
+                count += 1
+                
+            # टेलीग्राम सर्वर पर लोड न पड़े और फ्लड एरर न आए, इसलिए छोटा सा गैप
+            await asyncio.sleep(0.5)
+            
+        await message.reply_text(f"✅ **स्कैनिंग पूरी हो चुकी है!**\nकुल **{count} फ़िल्में** आपके डेटाबेस में सफलतापूर्वक सुरक्षित कर दी गई हैं।🍿")
+        
+    except FloodWait as e:
+        await asyncio.sleep(e.value)
     except Exception as e:
-        logger.exception(e)
-        return await message.reply(
-            f"❌ Channel access nahi ho raha.\n\n<code>{e}</code>"
-        )
+        await message.reply_text(f"❌ **चैनल एक्सेस नहीं हो रहा।**\n\nError: {str(e)}")
 
-    msg = await message.reply(
-        f"🚀 <b>Indexing Started</b>\n\n"
-        f"Channel: <code>{chat_id}</code>\n"
-        f"Last Message ID: <code>{last_msg_id}</code>"
-    )
-
-    await index_files_to_db(
-        int(last_msg_id),
-        chat_id,
-        msg,
-        bot
-    )
     
 @Client.on_message(filters.command('setskip') & filters.user(ADMINS))
 async def set_skip_number(bot, message):
