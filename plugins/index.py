@@ -122,22 +122,21 @@ async def admin_index(bot, message):
 
         chat_id = BIN_CHANNEL
 
-        # Channel ka latest message ID
-        latest = await bot.get_chat_history(chat_id, limit=1)
+        last_msg_id = None
 
-        if not latest:
+        async for latest_msg in bot.get_chat_history(chat_id, limit=1):
+            last_msg_id = latest_msg.id
+            break
+
+        if not last_msg_id:
             return await message.reply(
                 "❌ Channel mein koi message nahi mila."
             )
 
-        latest_msg = latest[0]
-        last_msg_id = latest_msg.id
-
     except Exception as e:
         logger.exception(e)
         return await message.reply(
-            f"❌ Channel access nahi ho raha.\n\n"
-            f"<code>{e}</code>"
+            f"❌ Channel access nahi ho raha.\n\n<code>{e}</code>"
         )
 
     msg = await message.reply(
