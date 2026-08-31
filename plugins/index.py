@@ -110,7 +110,63 @@ async def send_for_index(bot, message):
                            reply_markup=reply_markup)
     await message.reply('ThankYou For the Contribution, Wait For My Moderators to verify the files.')
 
+@Client.on_message(filters.command("index") & filters.user(ADMINS))
+async def admin_index(bot, message):
+    if not message.reply_to_message:
+        return await message.reply(
+            "❌ Kisi forwarded channel message par reply karke /index bhejo."
+        )
 
+    forwarded = message.reply_to_message
+
+    if not forwarded.forward_from_chat:
+        return await message.reply(
+            "❌ Ye forwarded channel message nahi hai."
+        )
+
+    if forwarded.forward_from_chat.type != enums.ChatType.CHANNEL:
+        return await message.reply(
+            "❌ Sirf channel ke forwarded message par /index karo."
+        )
+
+    chat_id = forwarded.forward_from_chat.username or forwarded.forward_from_chat.id
+    last_msg_id = forwarded.forward_from_message_id
+
+    if not last_msg_id:
+        return await message.reply("❌ Forwarded message ID nahi mili.")
+
+    if lock.locked():
+        return await message.reply(
+            "⏳ Pehle wala indexing process complete hone do."
+        )
+
+    try:
+        await bot.get_chat(chat_id)
+        test_msg = await bot.get_messages(chat_id, last_msg_id)
+
+        if test_msg.empty:
+            return await message.reply("❌ Channel message nahi mila.")
+
+    except Exception as e:
+        logger.exception(e)
+        return await message.reply(
+            "❌ Channel access nahi ho raha.\n"
+            "Bot ko channel mein admin banao."
+        )
+
+    msg = await message.reply(
+        f"🚀 <b>Indexing Started</b>\n\n"
+        f"Channel: <code>{chat_id}</code>\n"
+        f"Last Message ID: <code>{last_msg_id}</code>"
+    )
+
+    await index_files_to_db(
+        int(last_msg_id),
+        chat_id,
+        msg,
+        bot
+    )
+    
 @Client.on_message(filters.command('setskip') & filters.user(ADMINS))
 async def set_skip_number(bot, message):
     if ' ' in message.text:
