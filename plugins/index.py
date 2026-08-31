@@ -112,25 +112,49 @@ async def send_for_index(bot, message):
 
 @Client.on_message(filters.command("index") & filters.user(ADMINS))
 async def admin_index(bot, message):
+
+    if not message.reply_to_message:
+        return await message.reply(
+            "❌ Pehle channel ki kisi post ko forward karo, "
+            "phir us forwarded message par /index reply karo."
+        )
+
+    forwarded = message.reply_to_message
+
+    if not forwarded.forward_from_chat:
+        return await message.reply(
+            "❌ Ye forwarded channel message nahi hai."
+        )
+
+    if forwarded.forward_from_chat.type != enums.ChatType.CHANNEL:
+        return await message.reply(
+            "❌ Sirf channel ke forwarded message par /index karo."
+        )
+
+    chat_id = (
+        forwarded.forward_from_chat.username
+        or forwarded.forward_from_chat.id
+    )
+
+    last_msg_id = forwarded.forward_from_message_id
+
+    if not last_msg_id:
+        return await message.reply(
+            "❌ Forwarded message ID nahi mili."
+        )
+
     if lock.locked():
         return await message.reply(
             "⏳ Pehle wala indexing process complete hone do."
         )
 
     try:
-        from info import BIN_CHANNEL
+        await bot.get_chat(chat_id)
+        test_msg = await bot.get_messages(chat_id, last_msg_id)
 
-        chat_id = BIN_CHANNEL
-
-        last_msg_id = None
-
-        async for latest_msg in bot.get_chat_history(chat_id, limit=1):
-            last_msg_id = latest_msg.id
-            break
-
-        if not last_msg_id:
+        if test_msg.empty:
             return await message.reply(
-                "❌ Channel mein koi message nahi mila."
+                "❌ Channel message nahi mila."
             )
 
     except Exception as e:
