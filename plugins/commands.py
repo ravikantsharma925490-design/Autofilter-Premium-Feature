@@ -99,8 +99,12 @@ async def start(client, message):
     if len(message.command) != 2:
         buttons = [[
                  [
-    InlineKeyboardButton('👥 ᴊᴏɪɴ ɢʀᴏᴜᴘ 👥', url='https://t.me/CinemaGyan_group'),
-   ],
+         [
+            InlineKeyboardButton('👥 JOIN GROUP 👥', url='https://t.me/CinemaGyan_group'),
+        ]
+    ]
+)
+
                 ],[
                     InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
                     InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
