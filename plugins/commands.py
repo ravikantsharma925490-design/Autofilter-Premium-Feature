@@ -99,7 +99,10 @@ async def start(client, message):
         await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
     if len(message.command) != 2:
         buttons = [[
-                    InlineKeyboardButton('🔰 ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ 🔰', url=f'http://t.me/{temp.U_NAME}?startgroup=true')
+                   InlineKeyboardButton(
+            '📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ 📢',
+    url='https://t.me/cinemagyanupdates'
+)
                 ],[
                     InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
                     InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
