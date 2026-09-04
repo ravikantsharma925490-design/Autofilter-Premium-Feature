@@ -139,7 +139,7 @@ ULTRA_FAST_MODE = is_enabled(environ.get('ULTRA_FAST_MODE', "False"), True) # Se
 MAX_B_TN = environ.get("MAX_B_TN", "5") # Maximum number of buttons in a row (default: 5)
 PORT = int(environ.get("PORT", "8080"))  # Port for the web server (default: 8080)
 MSG_ALRT = environ.get('MSG_ALRT', 'Share & Support Us ♥️') # Alert message for users
-DELETE_TIME = int(environ.get("DELETE_TIME", "300"))  #  deletion time in seconds (default: 5 minutes). Adjust as per your needs.
+DELETE_TIME = int(environ.get("DELETE_TIME", "3600"))  #  deletion time in seconds (default: 5 minutes). Adjust as per your needs.
 # इस पुरानी लाइन को हटाकर सीधे यह लिख दें:
 CUSTOM_FILE_CAPTION = "🎬 {file_name}\n\n⚜️ Powered By : [ Cinema Gyan ]"
    # Custom caption for files
