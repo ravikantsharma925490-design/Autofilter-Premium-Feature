@@ -98,8 +98,7 @@ async def start(client, message):
         await db.add_user(message.from_user.id, message.from_user.first_name)
         await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
 
-
-    InlineKeyboardButton(
+InlineKeyboardButton(
         '📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ 📢',
         url='https://t.me/cinemagyanupdates'
     ),
@@ -107,9 +106,7 @@ async def start(client, message):
         '👥 ᴊᴏɪɴ ɢʀᴏᴜᴘ 👥',
         url='https://t.me/english_chatting_group18'
     )
-
-
-    InlineKeyboardButton(
+ InlineKeyboardButton(
         '📢 ʜᴇʟᴘ 📢',
         callback_data='help'
     ),
@@ -117,10 +114,7 @@ async def start(client, message):
         'ᴀʙᴏᴜᴛ 📖',
         callback_data='about'
     )
-
-     
- 
-        InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch"),
+InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch"),
         InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info"),
     ]]
                 ],[
