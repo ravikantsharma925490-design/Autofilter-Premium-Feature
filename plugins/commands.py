@@ -108,7 +108,7 @@ async def start(client, message):
         url='https://t.me/english_chatting_group18'
     )
 
-],[
+
     InlineKeyboardButton(
         '📢 ʜᴇʟᴘ 📢',
         callback_data='help'
