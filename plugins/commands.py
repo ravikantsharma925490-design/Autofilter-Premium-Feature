@@ -99,16 +99,23 @@ async def start(client, message):
         await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
     if len(message.command) != 2:
         buttons = [[
-                  [
-    InlineKeyboardButton(
-        '📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ 📢',
-        url='https://t.me/cinemagyanupdates'
-    ),
-    InlineKeyboardButton(
-        '👥 ᴊᴏɪɴ ɢʀᴏᴜᴘ 👥',
-        url='https://t.me/english_chatting_group18'
-    )
-],
+     if len(message.command) != 2:
+    buttons = [[
+        InlineKeyboardButton(
+            '📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ 📢',
+            url='https://t.me/cinemagyanupdates'
+        ),
+        InlineKeyboardButton(
+            '👥 ᴊᴏɪɴ ɢʀᴏᴜᴘ 👥',
+            url='https://t.me/english_chatting_group18'
+        )
+    ],[
+        InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
+        InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
+    ],[
+        InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch"),
+        InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info"),
+    ]]
                 ],[
                     InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
                     InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
