@@ -98,7 +98,7 @@ async def start(client, message):
         await db.add_user(message.from_user.id, message.from_user.first_name)
         await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
 
-   [
+
     InlineKeyboardButton(
         '📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ 📢',
         url='https://t.me/cinemagyanupdates'
