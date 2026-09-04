@@ -82,7 +82,7 @@ async def start(client, message):
         return         
     if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         buttons = [[
-                  
+                    InlineKeyboardButton('❤️ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ❤️', url=f'http://t.me/{temp.U_NAME}?startgroup=true')
                 ],[
                     InlineKeyboardButton('🍁 Update Channel 🍁', url=UPDATE_CHNL_LNK)
                   ]]
@@ -97,26 +97,14 @@ async def start(client, message):
     if not await db.is_user_exist(message.from_user.id):
         await db.add_user(message.from_user.id, message.from_user.first_name)
         await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
-
-InlineKeyboardButton(
-        '📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ 📢',
-        url='https://t.me/cinemagyanupdates'
-    ),
-    InlineKeyboardButton(
+    if len(message.command) != 2:
+        buttons = [[
+                    InlineKeyboardButton( '📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ 📢',
+        url='https://t.me/cinemagyanupdates')
+             InlineKeyboardButton(
         '👥 ᴊᴏɪɴ ɢʀᴏᴜᴘ 👥',
         url='https://t.me/english_chatting_group18'
     )
- InlineKeyboardButton(
-        '📢 ʜᴇʟᴘ 📢',
-        callback_data='help'
-    ),
-    InlineKeyboardButton(
-        'ᴀʙᴏᴜᴛ 📖',
-        callback_data='about'
-    )
-InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch"),
-        InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info"),
-    ]]
                 ],[
                     InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
                     InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
