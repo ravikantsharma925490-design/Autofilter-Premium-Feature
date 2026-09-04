@@ -117,7 +117,7 @@ async def start(client, message):
         'ᴀʙᴏᴜᴛ 📖',
         callback_data='about'
     )
-],[  
+
      
  
         InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch"),
