@@ -362,7 +362,7 @@ async def start(client, message):
     # Fetch file details concurrently with user checks
     file_details_task = asyncio.create_task(get_file_details(file_id))
 
-   @Client.on_message(
+@Client.on_message(
     filters.private &
     filters.text &
     filters.incoming &
