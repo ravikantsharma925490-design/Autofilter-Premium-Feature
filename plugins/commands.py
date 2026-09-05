@@ -362,12 +362,12 @@ async def start(client, message):
     # Fetch file details concurrently with user checks
     file_details_task = asyncio.create_task(get_file_details(file_id))
 
-    if not await db.has_premium_access(message.from_user.id): 
+   if not await db.has_premium_access(message.from_user.id): 
         try:
             btn = []
             chat = int(data.split("_", 2)[1])
             settings      = await get_settings(chat)
-            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS)) 
+            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS + AUTH_GROUPS))
 
             if fsub_channels:
                 btn += await is_subscribed(client, message.from_user.id, fsub_channels)
@@ -1385,7 +1385,7 @@ async def reset_group_callback(client, callback_query):
         'caption': CUSTOM_FILE_CAPTION,
         'log': LOG_CHANNEL,
         'is_verify': IS_VERIFY,
-        'fsub': AUTH_CHANNELS
+        'fsub': AUTH_CHANNELS + AUTH_GROUPS
     }
     current = await get_settings(grp_id)
     if current == defaults:
