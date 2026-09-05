@@ -409,6 +409,203 @@ async def pm_text(bot, message):
         if pm_search:
 
             # ==================================================
+            # PREMIUM USER
+            # PREMIUM USERS BYPASS FORCE SUB
+            # ==================================================
+            if await db.has_premium_access(user_id):
+                await auto_filter(bot, message)
+                return
+
+            # ==================================================
+            # FORCE SUBSCRIPTION CHECK
+            # ==================================================
+            btn = []
+
+            # --------------------------------------------------
+            # REQUIRED CHANNELS
+            # --------------------------------------------------
+            fsub_channels = list(
+                dict.fromkeys(
+                    AUTH_CHANNELS or []
+                )
+            )
+
+            if fsub_channels:
+                channel_buttons = await is_subscribed(
+                    bot,
+                    user_id,
+                    fsub_channels
+                )
+
+                if channel_buttons:
+                    btn += channel_buttons
+
+            # --------------------------------------------------
+            # REQUIRED GROUPS / JOIN REQUEST CHANNELS
+            # --------------------------------------------------
+            if AUTH_REQ_CHANNELS:
+                group_buttons = await is_req_subscribed(
+                    bot,
+                    user_id,
+                    AUTH_REQ_CHANNELS
+                )
+
+                if group_buttons:
+                    btn += group_buttons
+
+            # ==================================================
+            # USER HAS NOT JOINED
+            # ==================================================
+            if btn:
+
+                # --------------------------------------------------
+                # JOIN LABEL BUTTONS
+                # --------------------------------------------------
+                btn.insert(
+                    0,
+                    [
+                        InlineKeyboardButton(
+                            "📢 JOIN CHANNEL",
+                            callback_data="fsub_channel_info"
+                        ),
+                        InlineKeyboardButton(
+                            "👥 JOIN GROUP",
+                            callback_data="fsub_group_info"
+                        )
+                    ]
+                )
+
+                # --------------------------------------------------
+                # TRY AGAIN
+                # --------------------------------------------------
+                btn.append(
+                    [
+                        InlineKeyboardButton(
+                            "♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️",
+                            callback_data=f"checksub#{user_id}"
+                        )
+                    ]
+                )
+
+                reply_markup = InlineKeyboardMarkup(btn)
+
+                # --------------------------------------------------
+                # FORCE SUB PHOTO
+                # --------------------------------------------------
+                photo = (
+                    random.choice(FSUB_PICS)
+                    if FSUB_PICS
+                    else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg"
+                )
+
+                # --------------------------------------------------
+                # FORCE SUB NOTICE
+                # --------------------------------------------------
+                caption = (
+                    f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n"
+
+                    "🛑 <b>ACCESS BLOCKED!</b>\n\n"
+
+                    "📢 <b>JOIN CHANNEL</b>\n"
+                    "👥 <b>JOIN GROUP</b>\n\n"
+
+                    "⚠️ ᴍᴏᴠɪᴇ ᴅᴇᴋʜɴᴇ ᴋᴇ ʟɪʏᴇ "
+                    "ᴀᴘᴋᴏ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟ "
+                    "ᴀᴜʀ ɢʀᴏᴜᴘ ᴊᴏɪɴ ᴋᴀʀɴᴀ ʜᴏɢᴀ.\n\n"
+
+                    "✅ ᴘᴇʜʟᴇ <b>JOIN CHANNEL</b> "
+                    "ᴀᴜʀ <b>JOIN GROUP</b> ᴋᴀʀᴏ.\n"
+
+                    "♻️ ᴜsᴋᴇ ʙᴀᴀᴅ "
+                    "<b>TRY AGAIN</b> ᴘʀᴇss ᴋᴀʀᴏ."
+                )
+
+                await message.reply_photo(
+                    photo=photo,
+                    caption=caption,
+                    reply_markup=reply_markup,
+                    parse_mode=enums.ParseMode.HTML
+                )
+
+                return
+
+            # ==================================================
+            # ALL REQUIRED CHANNELS/GROUPS JOINED
+            # ==================================================
+            await auto_filter(bot, message)
+            return
+
+        # ==================================================
+        # PM SEARCH DISABLED
+        # ==================================================
+        else:
+
+            await message.reply_text(
+                text=(
+                    f"<b>🙋 ʜᴇʏ {user} 😍 ,\n\n"
+                    "𝒀𝒐𝒖 𝒄𝒂𝒏 𝒔𝒆𝒂𝒓𝒄𝒉 𝒇𝒐𝒓 𝒎𝒐𝒗𝒊𝒆𝒔 "
+                    "𝒐𝒏𝒍𝒚 𝒐𝒏 𝒐𝒖𝒓 𝑴𝒐𝒗𝒊𝒆 𝑮𝒓𝒐𝒖𝒑. "
+
+                    "𝒀𝒐𝒖 𝒂𝒓𝒆 𝒏𝒐𝒕 𝒂𝒍𝒍𝒐𝒘𝒆𝒅 𝒕𝒐 "
+                    "𝒔𝒆𝒂𝒓𝒄𝒉 𝒇𝒐𝒓 𝒎𝒐𝒗𝒊𝒆𝒔 "
+                    "𝒐𝒏 𝑫𝒊𝒓𝒆𝒄𝒕 𝑩𝒐𝒕.\n\n"
+
+                    "𝑷𝒍𝒆𝒂𝒔𝒆 𝒋𝒐𝒊𝒏 𝒐𝒖𝒓 𝒎𝒐𝒗𝒊𝒆 "
+                    "𝒈𝒓𝒐𝒖𝒑 𝒃𝒚 𝒄𝒍𝒊𝒄𝒌𝒊𝒏𝒈 "
+                    "𝒐𝒏 𝒕𝒉𝒆 𝑹𝑬𝑸𝑼𝑬𝑺𝑻 𝑯𝑬𝑹𝑬 "
+                    "𝒃𝒖𝒕𝒕𝒐𝒏 𝒈𝒊𝒗𝒆𝒏 𝒃𝒆𝒍𝒐𝒘 👇</b>"
+                ),
+                reply_markup=InlineKeyboardMarkup([
+                    [
+                        InlineKeyboardButton(
+                            "📝 ʀᴇǫᴜᴇsᴛ ʜᴇʀᴇ",
+                            url=GRP_LNK
+                        )
+                    ]
+                ])
+            )
+
+            await bot.send_message(
+                chat_id=LOG_CHANNEL,
+                text=(
+                    f"<b>#𝐏𝐌_𝐌𝐒ɢ\n\n"
+                    f"👤 Nᴀᴍᴇ : {user}\n"
+                    f"🆔 ID : {user_id}\n"
+                    f"💬 Mᴇssᴀɢᴇ : {content}</b>"
+                )
+            )
+
+    except Exception as e:
+        logger.exception(
+            f"❗️ PM Handler Error: {repr(e)}"
+        )
+
+        try:
+            await log_error(
+                bot,
+                f"❗️ PM Handler Error:\n\n{repr(e)}"
+            )
+        except Exception:
+            pass
+
+    # ================= IGNORE # MESSAGE =================
+    if content.startswith("#"):
+        return
+
+    try:
+        await mdb.update_top_messages(
+            user_id,
+            content
+        )
+
+        pm_search = await db.pm_search_status(bot_id)
+
+        # ==================================================
+        # PM SEARCH ENABLED
+        # ==================================================
+        if pm_search:
+
+            # ==================================================
             # FORCE SUBSCRIPTION CHECK
             # PREMIUM USERS WILL BYPASS THIS
             # ==================================================
