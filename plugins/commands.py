@@ -352,7 +352,7 @@ async def start(client, message):
         await auto_filter(client, message) 
         return
     
-      data = message.command[1]
+    data = message.command[1]
     try:
         _, grp_id, file_id = data.split("_", 2)
         grp_id = int(grp_id)
