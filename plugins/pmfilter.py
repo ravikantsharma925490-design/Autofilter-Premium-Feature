@@ -91,8 +91,21 @@ async def pm_text(bot, message):
     try:
         await mdb.update_top_messages(user_id, content)
         pm_search = await db.pm_search_status(bot_id)
-        if pm_search:
-            await auto_filter(bot, message)
+       if pm_search:
+    try:
+        await bot.send_message(
+            chat_id=ACTIVITY_LOG_CHANNEL,
+            text=(
+                f"<b>🔎 MOVIE SEARCH</b>\n\n"
+                f"👤 <b>User:</b> {message.from_user.mention}\n"
+                f"🆔 <b>ID:</b> <code>{message.from_user.id}</code>\n"
+                f"🔍 <b>Search:</b> <code>{message.text}</code>"
+            )
+        )
+    except Exception as e:
+        logger.error(f"Activity log error: {e}")
+
+    await auto_filter(bot, message)
         else:
             await message.reply_text(
                 text=(
