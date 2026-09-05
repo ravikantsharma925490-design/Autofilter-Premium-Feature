@@ -352,7 +352,7 @@ async def start(client, message):
         await auto_filter(client, message) 
         return
     
-    data = message.command[1]
+      data = message.command[1]
     try:
         _, grp_id, file_id = data.split("_", 2)
         grp_id = int(grp_id)
@@ -362,12 +362,12 @@ async def start(client, message):
     # Fetch file details concurrently with user checks
     file_details_task = asyncio.create_task(get_file_details(file_id))
 
-   if not await db.has_premium_access(message.from_user.id): 
+    if not await db.has_premium_access(message.from_user.id): 
         try:
             btn = []
             chat = int(data.split("_", 2)[1])
             settings      = await get_settings(chat)
-            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS + AUTH_GROUPS))
+            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS + AUTH_GROUPS)) 
 
             if fsub_channels:
                 btn += await is_subscribed(client, message.from_user.id, fsub_channels)
@@ -383,8 +383,8 @@ async def start(client, message):
                 photo = random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg"
                 caption = (
                     f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n"
-                    "🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n"
-                    "👉 ᴊᴏɪɴ ᴀʟʟ ᴛʜᴇ ʙᴇʟᴏᴡ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ."
+                    "🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴀɴᴅ ɢʀᴏᴜᴘ(s) ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n"
+                    "👉 ᴊᴏɪɴ ᴇᴠᴇʀʏᴛʜɪɴɢ ʙᴇʟᴏᴡ, ᴛʜᴇɴ ᴛᴀᴘ ᴛʀʏ ᴀɢᴀɪɴ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ᴍᴏᴠɪᴇ."
                 )
                 await message.reply_photo(
                     photo=photo,
@@ -397,7 +397,6 @@ async def start(client, message):
         except Exception as e:
             await log_error(client, f"❗️ Force Sub Error:\n\n{repr(e)}")
             logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
-
 
     user_id = m.from_user.id
     if not await db.has_premium_access(user_id):
