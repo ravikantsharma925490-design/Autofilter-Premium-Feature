@@ -6,7 +6,7 @@ from pyrogram import Client, filters, enums
 from pyrogram.errors import FloodWait
 from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, ChatAdminRequired, UsernameInvalid, UsernameNotModified
 from info import ADMINS, CHANNELS, INDEX_REQ_CHANNEL as LOG_CHANNEL
-from database.ia_filterdb import save_file
+from database.ia_filterdb import save_file, db as files_db
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils import temp, get_readable_time
 from math import ceil
@@ -17,11 +17,37 @@ logger.setLevel(logging.INFO)
 lock = asyncio.Lock()
  
 # ---------------------------------------------------------------------------
+# Resume pointer: har channel ke liye "kahan tak index ho chuka hai" MongoDB mein
+# (collection: index_state) save hota hai, taaki agli baar sirf NAYE messages scan hon.
+# ---------------------------------------------------------------------------
+async def _index_key(bot, chat):
+    try:
+        return str((await bot.get_chat(chat)).id)
+    except Exception:
+        return str(chat)
+ 
+ 
+async def get_index_pointer(bot, chat):
+    doc = await files_db["index_state"].find_one({"_id": await _index_key(bot, chat)})
+    return int(doc["last_id"]) if doc and doc.get("last_id") else None
+ 
+ 
+async def set_index_pointer(bot, chat, last_id):
+    await files_db["index_state"].update_one(
+        {"_id": await _index_key(bot, chat)},
+        {"$set": {"last_id": int(last_id)}},
+        upsert=True,
+    )
+ 
+ 
+# ---------------------------------------------------------------------------
 # /index command (sirf ADMINS, private chat mein)
 #   /index                          -> CHANNELS wale channel ko index karta hai
 #   /index -1001234567890           -> us channel ko index karta hai
 #   /index -1001234567890 5000      -> 5000 message ID tak index karta hai
 #   /index https://t.me/c/123/5000  -> link wale message tak index karta hai
+#   /index full                     -> pointer ignore karke shuru se dobara scan karta hai
+# Normal /index sirf NAYE messages scan karta hai (pichli baar ke baad se).
 # Poora kaam wahi index_files_to_db() karta hai (progress bar, cancel, duplicates skip).
 # ---------------------------------------------------------------------------
 INDEX_LINK_RE = re.compile(
@@ -61,7 +87,10 @@ def parse_index_args(args, channels):
  
  
 async def run_index_command(bot, message):
-    chat_id, last_id, err = parse_index_args(message.command[1:], CHANNELS)
+    args = message.command[1:]
+    force_full = any(a.lower() in ('full', 'all') for a in args)
+    args = [a for a in args if a.lower() not in ('full', 'all')]
+    chat_id, last_id, err = parse_index_args(args, CHANNELS)
     if err:
         return await message.reply(err)
     if lock.locked():
@@ -101,11 +130,18 @@ async def run_index_command(bot, message):
         if k.empty:
             return await message.reply("Ye message ID nahi mili. Sahi last message ID / link do.")
  
+    start = None
+    if not force_full:
+        try:
+            start = await get_index_pointer(bot, chat_id)
+        except Exception:
+            logger.exception("index pointer padh nahi paya, shuru se scan karunga")
+ 
     status = await message.reply(
-        "Starting Indexing",
+        f"Starting Indexing (sirf naye messages, ID {start} ke baad se)" if start else "Starting Indexing",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('Cancel', callback_data='index_cancel')]])
     )
-    await index_files_to_db(last_id, chat_id, status, bot)
+    await index_files_to_db(last_id, chat_id, status, bot, start=start)
  
  
 @Client.on_message(filters.command("index") & filters.private & filters.user(ADMINS), group=-1)
@@ -228,7 +264,7 @@ def get_progress_bar(percent, length=10):
     unfilled = length - filled
     return '🟩' * filled + '⬜️' * unfilled
  
-async def index_files_to_db(lst_msg_id, chat, msg, bot):
+async def index_files_to_db(lst_msg_id, chat, msg, bot, start=None):
     total_files = 0
     duplicate = 0
     errors = 0
@@ -240,17 +276,18 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
  
     async with lock:
         try:
-            current = temp.CURRENT
+            current = temp.CURRENT if start is None else start
+            base = current
             temp.CANCEL = False
             total_messages = lst_msg_id
             total_fetch = lst_msg_id - current
-            if total_messages <= 0:
+            if total_messages <= 0 or total_fetch <= 0:
                 await msg.edit(
-                    "🚫 No Messages To Index.",
+                    "🚫 No Messages To Index." if start is None else "✅ Kuch naya nahi hai, sab pehle se index hai.",
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('Close', callback_data='close_data')]])
                 )
                 return
-            batches = ceil(total_messages / BATCH_SIZE)
+            batches = ceil(total_fetch / BATCH_SIZE)
             batch_times = []
             await msg.edit(
                 f"📊 Indexing Starting......\n"
@@ -313,7 +350,7 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                 batch_time = time.time() - batch_start
                 batch_times.append(batch_time)
                 elapsed = time.time() - start_time
-                progress = current - temp.CURRENT
+                progress = current - base
                 percentage = (progress / total_fetch) * 100
                 avg_batch_time = sum(batch_times) / len(batch_times) if batch_times else 1
                 eta = (total_fetch - progress) / BATCH_SIZE * avg_batch_time
@@ -333,6 +370,10 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                     f"⏰ ETA: <code>{get_readable_time(eta)}</code>",
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('Cancel', callback_data='index_cancel')]])
                 )
+            try:
+                await set_index_pointer(bot, chat, current)
+            except Exception:
+                logger.exception('index pointer save nahi hua')
             elapsed = time.time() - start_time
             await msg.edit(
                 f"✅ Indexing Completed!\n"
@@ -352,5 +393,4 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                 f"❌ Error: <code>{e}</code>",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('Close', callback_data='close_data')]])
             )
- 
  
