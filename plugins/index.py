@@ -5,17 +5,116 @@ import asyncio
 from pyrogram import Client, filters, enums
 from pyrogram.errors import FloodWait
 from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, ChatAdminRequired, UsernameInvalid, UsernameNotModified
-from info import ADMINS, INDEX_REQ_CHANNEL as LOG_CHANNEL
+from info import ADMINS, CHANNELS, INDEX_REQ_CHANNEL as LOG_CHANNEL
 from database.ia_filterdb import save_file
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils import temp, get_readable_time
 from math import ceil
-
+ 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
+ 
 lock = asyncio.Lock()
-
+ 
+# ---------------------------------------------------------------------------
+# /index command (sirf ADMINS, private chat mein)
+#   /index                          -> CHANNELS wale channel ko index karta hai
+#   /index -1001234567890           -> us channel ko index karta hai
+#   /index -1001234567890 5000      -> 5000 message ID tak index karta hai
+#   /index https://t.me/c/123/5000  -> link wale message tak index karta hai
+# Poora kaam wahi index_files_to_db() karta hai (progress bar, cancel, duplicates skip).
+# ---------------------------------------------------------------------------
+INDEX_LINK_RE = re.compile(
+    r"^(?:https?://)?(?:t\.me|telegram\.me|telegram\.dog)/(c/)?([A-Za-z0-9_]+)/(\d+)/?$"
+)
+ 
+ 
+def parse_index_args(args, channels):
+    """Return (chat_id, last_id, error). last_id None ho to auto-detect hoga."""
+    if args:
+        m = INDEX_LINK_RE.match(args[0])
+        if m:
+            chat = m.group(2)
+            chat_id = int("-100" + chat) if chat.isdigit() else chat
+            return chat_id, int(m.group(3)), None
+        try:
+            chat_id = int(args[0])
+        except ValueError:
+            chat_id = args[0].lstrip("@")
+        last_id = None
+        if len(args) > 1:
+            if not args[1].isdigit():
+                return None, None, "Last message ID sirf number honi chahiye."
+            last_id = int(args[1])
+        return chat_id, last_id, None
+ 
+    valid = [c for c in channels if str(c) != "-100"]
+    if not valid:
+        return None, None, (
+            "CHANNELS env var mein channel ID nahi hai.\n"
+            "Ya to CHANNELS set karo, ya aise likho: <code>/index -1001234567890</code>"
+        )
+    if len(valid) > 1:
+        ids = "\n".join(f"<code>/index {c}</code>" for c in valid)
+        return None, None, f"Kai channels hain, kaun sa index karna hai?\n\n{ids}"
+    return valid[0], None, None
+ 
+ 
+async def run_index_command(bot, message):
+    chat_id, last_id, err = parse_index_args(message.command[1:], CHANNELS)
+    if err:
+        return await message.reply(err)
+    if lock.locked():
+        return await message.reply("Pehle wala indexing abhi chal rahi hai, use khatam hone do.")
+ 
+    try:
+        await bot.get_chat(chat_id)
+    except ChannelInvalid:
+        return await message.reply("Ye private channel/group lag raha hai. Mujhe wahan admin banao.")
+    except (UsernameInvalid, UsernameNotModified):
+        return await message.reply("Invalid username / link.")
+    except Exception as e:
+        logger.exception(e)
+        return await message.reply(f"Error: <code>{e}</code>")
+ 
+    if last_id is None:
+        # Bot channel ki history nahi padh sakta, isliye ek chhota message bhejkar
+        # uski ID se last message ID nikalte hain, phir turant delete kar dete hain.
+        try:
+            probe = await bot.send_message(chat_id, ".", disable_notification=True)
+        except Exception as e:
+            logger.exception(e)
+            return await message.reply(
+                "Channel ka last message ID auto nahi mila (bot ko 'Post Messages' permission chahiye).\n"
+                "Aise do: <code>/index &lt;chat_id&gt; &lt;last_msg_id&gt;</code> ya last message ka link."
+            )
+        last_id = probe.id - 1
+        try:
+            await probe.delete()
+        except Exception:
+            pass
+    else:
+        try:
+            k = await bot.get_messages(chat_id, last_id)
+        except Exception:
+            return await message.reply("Mujhe channel mein admin banao, phir try karo.")
+        if k.empty:
+            return await message.reply("Ye message ID nahi mili. Sahi last message ID / link do.")
+ 
+    status = await message.reply(
+        "Starting Indexing",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('Cancel', callback_data='index_cancel')]])
+    )
+    await index_files_to_db(last_id, chat_id, status, bot)
+ 
+ 
+@Client.on_message(filters.command("index") & filters.private & filters.user(ADMINS), group=-1)
+async def index_command(bot, message):
+    await run_index_command(bot, message)
+    # send_for_index (link/forward wala handler) dobara na chale
+    message.stop_propagation()
+ 
+ 
 @Client.on_callback_query(filters.regex(r'^index'))
 async def index_files(bot, query):
     if query.data.startswith('index_cancel'):
@@ -28,11 +127,11 @@ async def index_files(bot, query):
                                f'Your Submission for indexing {chat} has been declined by our moderators.',
                                reply_to_message_id=int(lst_msg_id))
         return
-
+ 
     if lock.locked():
         return await query.answer('Wait until previous process complete.', show_alert=True)
     msg = query.message
-
+ 
     await query.answer('Processing...⏳', show_alert=True)
     if int(from_user) not in ADMINS:
         await bot.send_message(int(from_user),
@@ -49,8 +148,8 @@ async def index_files(bot, query):
     except:
         chat = chat
     await index_files_to_db(int(lst_msg_id), chat, msg, bot)
-
-
+ 
+ 
 @Client.on_message((filters.forwarded | (filters.regex(r"(https://)?(t\.me/|telegram\.me/|telegram\.dog/)(c/)?(\d+|[a-zA-Z_0-9]+)/(\d+)$")) & filters.text ) & filters.private & filters.incoming)
 async def send_for_index(bot, message):
     if message.text:
@@ -82,7 +181,7 @@ async def send_for_index(bot, message):
         return await message.reply('Make Sure That Iam An Admin In The Channel, if channel is private')
     if k.empty:
         return await message.reply('This may be group and i am not a admin of the group.')
-
+ 
     if message.from_user.id in ADMINS:
         buttons = [
             [InlineKeyboardButton('Yes', callback_data=f'index#accept#{chat_id}#{last_msg_id}#{message.from_user.id}')],
@@ -92,7 +191,7 @@ async def send_for_index(bot, message):
         return await message.reply(
             f'Do you Want To Index This Channel/ Group ?\n\nChat ID/ Username: <code>{chat_id}</code>\nLast Message ID: <code>{last_msg_id}</code>\n\nɴᴇᴇᴅ sᴇᴛsᴋɪᴘ 👉🏻 /setskip',
             reply_markup=reply_markup)
-
+ 
     if type(chat_id) is int:
         try:
             link = (await bot.create_chat_invite_link(chat_id)).invite_link
@@ -109,42 +208,7 @@ async def send_for_index(bot, message):
                            f'#IndexRequest\n\nBy : {message.from_user.mention} (<code>{message.from_user.id}</code>)\nChat ID/ Username - <code> {chat_id}</code>\nLast Message ID - <code>{last_msg_id}</code>\nInviteLink - {link}',
                            reply_markup=reply_markup)
     await message.reply('ThankYou For the Contribution, Wait For My Moderators to verify the files.')
-
-import asyncio
-from pyrogram import Client, filters
-from pyrogram.errors import FloodWait
-
-# अपनी रेंडर सेटिंग्स के अनुसार एडमिन चेक करने के लिए
-@Client.on_message(filters.command("index") & filters.private)
-async def index_channels(bot, message):
-    # यहाँ चेक करें कि क्या मैसेज भेजने वाला असली एडमिन है
-    # (ADMINS आपकी रेंडर सेटिंग्स से खुद उठ जाएगा)
-    
-    await message.reply_text("✨ **आपकी फ़िल्में स्कैन (Index) होना शुरू हो गई हैं...**\nकृपया थोड़ा इंतज़ार करें।")
-    
-    try:
-        # आपके प्राइवेट डेटाबेस चैनल की सेटिंग्स से सीधा कनेक्शन
-        channel_id = bot.config.get("BIN_CHANNEL") or bot.config.get("LOG_CHANNEL")
-        
-        count = 0
-        # Pyrogram V2 का नया और सही तरीका चैनल से फ़ाइलें पढ़ने का
-        async for msg in bot.get_chat_history(chat_id=channel_id):
-            if msg.media:
-                # यहाँ मोंगोडीबी डेटाबेस में फ़ाइल सेव करने का आपका इन-बिल्ट फंक्शन ट्रिगर होगा
-                await bot.save_file_to_db(msg)  
-                count += 1
-                
-            # टेलीग्राम सर्वर पर लोड न पड़े और फ्लड एरर न आए, इसलिए छोटा सा गैप
-            await asyncio.sleep(0.5)
-            
-        await message.reply_text(f"✅ **स्कैनिंग पूरी हो चुकी है!**\nकुल **{count} फ़िल्में** आपके डेटाबेस में सफलतापूर्वक सुरक्षित कर दी गई हैं।🍿")
-        
-    except FloodWait as e:
-        await asyncio.sleep(e.value)
-    except Exception as e:
-        await message.reply_text(f"❌ **चैनल एक्सेस नहीं हो रहा।**\n\nError: {str(e)}")
-
-    
+ 
 @Client.on_message(filters.command('setskip') & filters.user(ADMINS))
 async def set_skip_number(bot, message):
     if ' ' in message.text:
@@ -157,13 +221,13 @@ async def set_skip_number(bot, message):
         temp.CURRENT = int(skip)
     else:
         await message.reply("Give me a skip number")
-
+ 
 def get_progress_bar(percent, length=10):
     """Creates an emoji-based progress bar."""
     filled = int(length * percent / 100)
     unfilled = length - filled
     return '🟩' * filled + '⬜️' * unfilled
-
+ 
 async def index_files_to_db(lst_msg_id, chat, msg, bot):
     total_files = 0
     duplicate = 0
@@ -173,7 +237,7 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
     unsupported = 0
     BATCH_SIZE = 200
     start_time = time.time()
-
+ 
     async with lock:
         try:
             current = temp.CURRENT
@@ -230,7 +294,7 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         media.file_type = message.media.value
                         media.caption = message.caption
                         save_tasks.append(save_file(media))
-
+ 
                     except Exception:
                         errors += 1
                         continue
@@ -288,4 +352,5 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                 f"❌ Error: <code>{e}</code>",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('Close', callback_data='close_data')]])
             )
-
+ 
+ 
